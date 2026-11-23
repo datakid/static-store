@@ -4,20 +4,24 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f3efe3" media="(prefers-color-scheme:light)">
+<meta name="theme-color" content="#1e1823" media="(prefers-color-scheme:dark)">
 <meta name="description" content="App downloads, every version.">
 <title>Shelf</title>
-<script>document.documentElement.dataset.theme=localStorage.theme||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light')</script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&family=Geist:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link id="icon" rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="manifest" href="manifest.webmanifest">
+<script>try{var t=localStorage.theme;if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}</script>
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 <header class="top">
-  <a class="mark" href="#/"></a>
-  <button id="theme" aria-label="Toggle theme"></button>
+  <a class="mark" href="#/">
+    <svg viewBox="5 8 22 19" aria-hidden="true"><rect class="i" x="8" y="9" width="4" height="13.5" rx="1.2"/><rect class="a" x="13.5" y="12" width="4" height="10.5" rx="1.2"/><rect class="i" x="20.5" y="10" width="4" height="12.5" rx="1.2" transform="rotate(-12 20.5 22.5)"/><rect class="i" x="6" y="23.5" width="20" height="2.5" rx="1.25"/></svg>
+    <span id="site">Shelf</span>
+  </a>
+  <button id="theme"></button>
 </header>
-<main>
+<main aria-busy="true">
   <section class="find">
     <label class="search">
       <input id="q" type="search" placeholder="Search" autocomplete="off" spellcheck="false" aria-label="Search apps, versions, platforms">
@@ -27,12 +31,16 @@
       <div id="plats" class="chips" role="group" aria-label="Platform"></div>
       <span id="count" class="label"></span>
     </div>
+    <div class="sense">
+      <button id="detect" aria-pressed="false" aria-describedby="sense">Detect my system</button>
+      <p id="sense"></p>
+    </div>
   </section>
   <ol id="list" class="list"></ol>
-  <p id="empty" class="empty" hidden>Nothing matches.</p>
+  <p id="empty" class="empty" hidden></p>
 </main>
 <footer>
-  <span>Releases sync from GitHub</span>
+  <span>Releases from GitHub</span>
   <span id="sync"></span>
 </footer>
 <script src="js/apps.js"></script>
