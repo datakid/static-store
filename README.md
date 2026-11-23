@@ -30,7 +30,3 @@ One line in `js/apps.js`:
 - Source: `api.github.com/repos/<repo>` and `/releases` (public, no key)
 - Cached in `localStorage` for 15 minutes with ETag revalidation; unauthenticated GitHub limit is 60 requests per hour per visitor IP
 - Repos must be public and releases need attached binaries to show downloads
-
-## Not done
-- Not deployed
-- No screenshots or icons per app
