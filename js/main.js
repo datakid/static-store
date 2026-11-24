@@ -3,18 +3,20 @@
   const API = 'https://api.github.com/';
   const TTL = 9e5;
   const DAY = 864e5;
-  const PLAT = { windows: 'Windows', linux: 'Linux', android: 'Android', other: 'Other files' };
-  const KNOWN = ['windows', 'linux', 'android'];
-  const RANK = ['.exe', '.msi', '.apk', '.appimage', '.deb', '.rpm', '.zip', '.tar.gz'];
+  const PLAT = { windows: 'Windows', macos: 'macOS', linux: 'Linux', android: 'Android', other: 'Other files' };
+  const KNOWN = ['windows', 'macos', 'linux', 'android'];
+  const RANK = ['.exe', '.msi', '.apk', '.dmg', '.pkg', '.appimage', '.deb', '.rpm'];
+  const ARROW = { '-1': 'M19 12H5m6-6-6 6 6 6', 1: 'M5 12h14m-6-6 6 6-6 6' };
   const MODES = ['auto', 'light', 'dark'];
   const G = {
     windows: '<path d="M3 5.4 10.6 4.3v7.2H3zM11.6 4.2 21 2.9v8.6h-9.4zM3 12.5h7.6v7.2L3 18.6zM11.6 12.5H21v8.6l-9.4-1.3z"/>',
+    macos: '<path d="M16.4 12.6c0-2 1.6-3 1.7-3c-.9-1.4-2.4-1.6-2.9-1.6c-1.2-.1-2.4.7-3 .7s-1.6-.7-2.6-.7c-1.3 0-2.6.8-3.3 2c-1.4 2.4-.4 6 1 8c.7 1 1.5 2.1 2.5 2c1 0 1.4-.6 2.6-.6s1.5.6 2.6.6s1.8-1 2.4-2c.8-1.1 1.1-2.2 1.1-2.2s-2.1-.8-2.1-3.2zM14.5 6.4c.6-.7 1-1.7.9-2.7c-.9 0-1.9.6-2.5 1.3c-.6.6-1 1.6-.9 2.6c1 .1 1.9-.5 2.5-1.2z"/>',
     linux: '<path fill-rule="evenodd" d="M12 2.8c-2.1 0-3.5 1.7-3.5 4 0 1.7-.7 2.8-1.7 4.4C5.7 13.1 5 14.9 5 16.9c0 2.6 2.7 4.3 7 4.3s7-1.7 7-4.3c0-2-.7-3.8-1.8-5.7-1-1.6-1.7-2.7-1.7-4.4 0-2.3-1.4-4-3.5-4zM12 10.4c1.6 0 3 2.4 3 5.2 0 1.9-1.3 2.9-3 2.9s-3-1-3-2.9c0-2.8 1.4-5.2 3-5.2z"/>',
     android: '<path fill-rule="evenodd" d="M4.5 17.5a7.5 7.5 0 0 1 15 0zM8.5 14a1 1 0 1 0 2 0 1 1 0 0 0-2 0zm5 0a1 1 0 1 0 2 0 1 1 0 0 0-2 0z"/><path d="M8 11.5 6.5 9M16 11.5 17.5 9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>'
   };
-  const S = { q: '', plat: null, host: null, open: null, tag: null, chan: 'all', vq: '', ready: false, busy: false, next: false, y: 0 };
+  const S = { q: '', plat: null, host: null, open: null, tag: null, chan: 'all', vq: '', ready: false, busy: false, next: false, y: 0, pick: null, dir: 0, foc: 0 };
   const net = { ok: 0, fail: 0, t: 0, until: 0, left: Infinity, cap: 0, bad: false };
-  let APPS = [], sig = '', mode = 'auto';
+  let APPS = [], VIS = [], sig = '', shown = '', mode = 'auto';
 
   const root = document.documentElement;
   const $ = (s, r = document) => r.querySelector(s);
@@ -22,7 +24,8 @@
   const lc = s => String(s).toLowerCase();
   const slug = s => lc(s).replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
   const title = s => s.replace(/[-_.]+/g, ' ').trim().replace(/\b[a-z]/g, c => c.toUpperCase());
-  const TUNE = Object.fromEntries(Object.entries(CFG.tune || {}).map(([k, v]) => [lc(k), v]));
+  const norm = s => lc(s).split('/').map(slug).join('/');
+  const TUNE = Object.fromEntries(Object.entries(CFG.tune || {}).map(([k, v]) => [norm(k), v]));
   const store = {
     get: k => { try { return localStorage.getItem(k); } catch { return null; } },
     set: (k, v) => { try { localStorage.setItem(k, v); } catch {} },
@@ -43,7 +46,9 @@
   const ext = n => RANK.find(x => lc(n).endsWith(x)) || lc(n).match(/\.[a-z0-9]+$/)?.[0] || '';
   const latestOf = app => app.rel.find(r => !r.pre) || app.rel[0];
   const glyph = p => `<svg class="g" viewBox="0 0 24 24" aria-hidden="true">${G[p]}</svg>`;
-  const ico = app => `<span class="ico" style="--h:${app.hue}" aria-hidden="true">${app.icon ? `<img src="${esc(app.icon)}" alt="" loading="lazy">` : `<b>${esc(app.mono)}</b>`}</span>`;
+  const ico = app => `<span class="ico" style="--h:${app.hue}${app.zoom ? `;--z:${+app.zoom}` : ''}" aria-hidden="true">${app.icon ? `<img src="${esc(app.icon)}" alt="">` : `<b>${esc(app.mono)}</b>`}</span>`;
+  const nav = (i, n) => n > 1 ? `<span class="nav">${[-1, 1].map(d => `<button class="tool" data-go="${d}" aria-label="${d < 0 ? 'Previous' : 'Next'} app" title="${d < 0 ? 'Previous' : 'Next'} app"><svg class="s" viewBox="0 0 24 24" aria-hidden="true"><path d="${ARROW[d]}"/></svg></button>`).join(`<span class="label">${i + 1} / ${n}</span>`)}</span>` : '';
+  const refocus = el => { if (S.foc) el.querySelector(`[data-go="${S.foc}"]`)?.focus({ preventScroll: true }); S.foc = 0; };
   const mono = s => {
     const w = s.replace(/([a-z])([A-Z])/g, '$1 $2').match(/[A-Za-z0-9]+/g) || ['?'];
     return (w[0][0] + (w.length > 1 ? w.at(-1)[0] : '')).toUpperCase();
@@ -55,16 +60,17 @@
     return s.length > 80 ? s.slice(0, 80).replace(/\s+\S*$/, '') + '…' : s;
   };
 
-  const plat = n => /\.(sig|blockmap|ya?ml|json|sha\d+|md5|asc|txt)$/i.test(n) ? 'other'
+  const plat = n => /\.(sig|blockmap|ya?ml|json|sha\d+|md5|asc|txt|zip|7z|rar|gz|tgz|xz|bz2|zst)$/i.test(n) ? 'other'
     : /\.(apk|aab)$/i.test(n) ? 'android'
-    : /\.(ipa|dmg|pkg)$|darwin|macos|osx|(^|[-_.])(mac|ios)([-_.]|$)/i.test(n) ? 'other'
+    : /\.ipa$|(^|[-_.])ios([-_.]|$)/i.test(n) ? 'other'
+    : /\.(dmg|pkg)$|darwin|macos|osx|(^|[-_.])mac([-_.]|$)/i.test(n) ? 'macos'
     : /\.(exe|msi|msix)$|windows|win32|win64|(^|[-_.])win([-_.]|$)/i.test(n) ? 'windows'
     : /\.(appimage|deb|rpm|flatpak|snap)$|linux/i.test(n) ? 'linux'
     : /android/i.test(n) ? 'android' : null;
 
   const sniff = () => {
     const s = `${navigator.userAgentData?.platform || ''} ${navigator.userAgent}`;
-    return /android/i.test(s) ? 'android' : /iphone|ipad|ipod|mac/i.test(s) ? null : /win/i.test(s) ? 'windows' : /linux|x11|cros/i.test(s) ? 'linux' : null;
+    return /android/i.test(s) ? 'android' : /iphone|ipad|ipod/i.test(s) || (/mac/i.test(s) && navigator.maxTouchPoints > 1) ? null : /mac/i.test(s) ? 'macos' : /win/i.test(s) ? 'windows' : /linux|x11|cros/i.test(s) ? 'linux' : null;
   };
 
   const best = r => {
@@ -143,11 +149,11 @@
       for (const x of r.rel) for (const a of x.assets) a.p = plat(a.n);
       const rel = r.rel.filter(x => x.assets.some(a => KNOWN.includes(a.p)));
       if (!rel.length) return null;
-      const [owner, raw] = r.repo.split('/'), t = TUNE[lc(r.repo)] || {};
+      const [owner, raw] = r.repo.split('/'), t = TUNE[norm(r.repo)] || {};
       let id = slug(raw) || slug(owner) || 'app';
       if (ids.has(id)) id = slug(r.repo);
       ids.add(id);
-      const app = { id, repo: r.repo, rel, name: t.name || title(raw), about: brief(t.about ?? r.about), icon: t.icon };
+      const app = { id, repo: r.repo, rel, name: t.name || title(raw), about: brief(t.about ?? r.about), icon: t.icon, zoom: t.zoom };
       app.hue = t.hue ?? [...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
       app.mono = mono(app.name);
       const files = rel.flatMap(x => x.assets);
@@ -190,27 +196,38 @@
   }
 
   function feature() {
-    const [a, b, c] = APPS;
-    if (!a) { hero.innerHTML = ''; return; }
+    const n = VIS.length, i = Math.max(0, VIS.findIndex(x => x.id === S.pick)), a = VIS[i];
+    if (!a) { hero.innerHTML = shown = ''; return; }
+    const b = n > 1 ? VIS[(i + n - 1) % n] : null, c = n > 2 ? VIS[(i + 1) % n] : null;
     const r = latestOf(a), f = best(r), to = `#/${a.id}`;
     const stand = (x, cls) => x ? `<a class="${cls}" href="#/${x.id}" tabindex="-1" title="${esc(x.name)}">${ico(x)}</a>` : '';
     hero.style.setProperty('--h', a.hue);
-    hero.innerHTML = `<div><p class="label">Latest release · ${date(r.date)}</p><h1><a href="${to}">${esc(a.name)}</a></h1>${
+    const html = `<div class="step"><p class="label">${i ? 'Released' : 'Latest release'} · ${date(r.date)}</p>${nav(i, n)}</div><div><h1><a href="${to}">${esc(a.name)}</a></h1>${
       a.about ? `<p class="lead">${esc(a.about)}</p>` : ''}<p class="acts">${
       f ? `<a class="cta" href="${esc(f.u)}">${glyph(f.p)}Get ${esc(r.tag)} for ${PLAT[f.p]}</a><a class="more" href="${to}">All versions</a>`
         : `<a class="cta" href="${to}">View ${esc(r.tag)}</a><span class="plats">${a.platforms.map(glyph).join('')}</span>`
     }</p></div><div class="shelf" aria-hidden="true">${stand(b, 'm')}${stand(a, 'l')}${stand(c, 'm lean')}</div>`;
+    if (html === shown) return;
+    shown = html;
+    hero.style.setProperty('--d', S.dir);
+    S.dir = 0;
+    hero.innerHTML = html;
+    refocus(hero);
   }
 
   function panel(app) {
     const rel = app.rel, mixed = rel.some(r => r.pre) && rel.some(r => !r.pre);
+    const pool = VIS.includes(app) ? VIS : APPS;
     page.style.setProperty('--h', app.hue);
-    page.innerHTML = `<a class="back" href="#/"><svg class="s" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5m6-6-6 6 6 6"/></svg>All apps</a><header class="phead">${ico(app)}<div><h1>${esc(app.name)}</h1>${
+    page.style.setProperty('--d', S.dir);
+    S.dir = 0;
+    page.innerHTML = `<div class="step"><a class="back" href="#/"><svg class="s" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5m6-6-6 6 6 6"/></svg>All apps</a>${nav(pool.indexOf(app), pool.length)}</div><header class="phead">${ico(app)}<div><h1>${esc(app.name)}</h1>${
       app.about ? `<p>${esc(app.about)}</p>` : ''}<p class="meta">${app.platforms.map(p => `<span>${glyph(p)}${PLAT[p]}</span>`).join('')}${
       app.gets ? `<span>${app.gets.toLocaleString()} downloads</span>` : ''}<a href="https://github.com/${esc(app.repo)}" target="_blank" rel="noopener">${esc(app.repo)} ↗</a></p></div></header><div class="split"><aside class="rail"><h3 class="label">Versions</h3>${
       rel.length > 6 ? `<input class="vq" type="search" placeholder="Filter versions" aria-label="Filter versions" value="${esc(S.vq)}">` : ''}${
       mixed ? `<div class="chips">${[['all', 'All'], ['stable', 'Stable'], ['pre', 'Pre-release']].map(([c, t]) => `<button data-c="${c}" aria-pressed="${S.chan === c}">${t}</button>`).join('')}</div>` : ''
     }<ol class="vers"></ol></aside><article class="rel"></article></div>`;
+    refocus(page);
     rail(app);
     detail(app);
   }
@@ -250,20 +267,22 @@
   }
 
   function update() {
-    const lead = APPS.length > 2 && !S.q.trim() && !S.plat;
+    const lead = APPS.length > 1 && !S.q.trim();
     const lim = net.until > Date.now();
     let n = 0;
-    hero.hidden = !lead;
     APPS.forEach((app, i) => {
       const hits = match(app);
       if (hits) n++;
       app.li.hidden = !hits;
       $('.hits', app.li).innerHTML = (hits || []).map(r => `<a href="#/${app.id}/${encodeURIComponent(r.tag)}">${esc(r.tag)}</a>`).join('');
     });
+    VIS = APPS.filter(a => !a.li.hidden);
+    hero.hidden = !lead || !VIS.length;
+    feature();
     $('#count').textContent = !APPS.length ? '' : n === APPS.length ? (n === 1 ? '1 app' : `${n} apps`) : `${n} of ${APPS.length}`;
     empty.innerHTML = APPS.length ? 'Nothing matches.'
       : lim ? `GitHub’s hourly limit is used up until ${stamp(net.until)}.${token() ? '' : '<button class="btn" data-prefs>Add a token</button>'}`
-      : net.ok ? 'No Windows, Linux or Android releases yet.' : 'GitHub is out of reach.';
+      : net.ok ? 'No Windows, macOS, Linux or Android releases yet.' : 'GitHub is out of reach.';
     empty.hidden = n > 0 || !S.ready;
   }
 
@@ -298,7 +317,6 @@
     const chips = KNOWN.map(p => [p, APPS.filter(a => a.platforms.includes(p)).length]).filter(([, n]) => n);
     if (!chips.some(([p]) => p === S.plat)) S.plat = null;
     $('#plats').innerHTML = chips.length ? `<button data-p="" aria-pressed="${!S.plat}">All</button>` + chips.map(([p, n]) => `<button data-p="${p}" aria-pressed="${S.plat === p}">${glyph(p)}${PLAT[p]}<sup>${n}</sup></button>`).join('') : '';
-    feature();
     S.open = null;
     update();
     route(again);
@@ -353,7 +371,7 @@
     S.host = on ? sniff() : null;
     det.setAttribute('aria-pressed', on);
     $('#sense').textContent = on
-      ? `${S.host ? PLAT[S.host] : 'Not a Windows, Linux or Android device'} · stays on this device`
+      ? `${S.host ? PLAT[S.host] : 'Not a Windows, macOS, Linux or Android device'} · stays on this device`
       : 'Reads your browser’s platform to put matching files first. Stays on this device.';
     store.set('detect', on ? '1' : '0');
     APPS.forEach(cell);
@@ -384,6 +402,16 @@
     net.until = 0;
     tokenState(note);
     sync(true);
+  }
+
+  function go(d) {
+    const o = S.open, pool = o && !VIS.includes(o) ? APPS : VIS, n = pool.length;
+    if (n < 2 || (!o && hero.hidden)) return;
+    const to = pool[(Math.max(0, pool.findIndex(a => a.id === (o ? o.id : S.pick))) + d + n) % n];
+    S.dir = d;
+    S.foc = document.activeElement?.dataset?.go ? d : 0;
+    if (o) location.replace('#/' + to.id);
+    else { S.pick = to.id; feature(); }
   }
 
   $('#plats').addEventListener('click', e => {
@@ -423,7 +451,9 @@
   });
 
   document.addEventListener('click', e => {
-    if (e.target.closest('[data-prefs]')) { tokenState(); prefs.showModal(); }
+    const g = e.target.closest('[data-go]');
+    if (g) go(+g.dataset.go);
+    else if (e.target.closest('[data-prefs]')) { tokenState(); prefs.showModal(); }
     else if (e.target.closest('[data-close]') || e.target === prefs) prefs.close();
   });
 
@@ -438,6 +468,7 @@
     if (prefs.open) return;
     const f = document.activeElement, typing = /INPUT|TEXTAREA/.test(f.tagName);
     if (e.key === '/' && !typing) { e.preventDefault(); q.focus(); }
+    else if (/^Arrow(Left|Right)$/.test(e.key) && !typing && !e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey) go(e.key === 'ArrowRight' ? 1 : -1);
     else if (e.key === 'Escape') {
       if (f === q && q.value) { q.value = S.q = ''; update(); }
       else if (S.open) location.hash = '#/';
