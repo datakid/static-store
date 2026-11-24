@@ -1,5 +1,5 @@
-const CACHE = 'shelf-2';
-const SHELL = ['./', 'index.html', 'css/style.css', 'js/apps.js', 'js/main.js', 'favicon.svg', 'manifest.webmanifest', 'images/tacit.jpg', 'images/polars-desktop.jpg', 'images/duck-bars.jpg', 'images/duck-grid.jpg', 'images/contact-flow.jpg', 'images/ps-tools.jpg'];
+const CACHE = 'shelf-3';
+const SHELL = ['./', 'index.html', 'css/style.css', 'js/apps.js', 'js/icons.js', 'js/qr.js', 'js/main.js', 'favicon.svg', 'manifest.webmanifest'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => Promise.all(SHELL.map(u => c.add(u).catch(() => {})))).then(() => self.skipWaiting()));

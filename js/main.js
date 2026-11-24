@@ -46,7 +46,15 @@
   const ext = n => RANK.find(x => lc(n).endsWith(x)) || lc(n).match(/\.[a-z0-9]+$/)?.[0] || '';
   const latestOf = app => app.rel.find(r => !r.pre) || app.rel[0];
   const glyph = p => `<svg class="g" viewBox="0 0 24 24" aria-hidden="true">${G[p]}</svg>`;
-  const ico = app => `<span class="ico" style="--h:${app.hue}${app.zoom ? `;--z:${+app.zoom}` : ''}" aria-hidden="true">${app.icon ? `<img src="${esc(app.icon)}" alt="">` : `<b>${esc(app.mono)}</b>`}</span>`;
+  const ICONS = window.ICONS || {};
+  const ico = app => ICONS[app.icon]
+    ? `<span class="ico art" aria-hidden="true"><svg viewBox="0 0 64 64">${ICONS[app.icon]}</svg></span>`
+    : app.icon ? `<span class="ico art" aria-hidden="true"><img src="${esc(app.icon)}" alt="" decoding="async"></span>`
+    : `<span class="ico" style="--h:${app.hue}" aria-hidden="true"><b>${esc(app.mono)}</b></span>`;
+  const GH = '<svg class="g" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-3.2 19.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.4-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.3-2.2-.3-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.2-.4-1.3.1-2.7 0 0 .8-.3 2.8 1a9.6 9.6 0 0 1 5 0c1.9-1.3 2.8-1 2.8-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.7-4.6 5 .4.3.7.9.7 1.9V21c0 .3.2.6.7.5A10 10 0 0 0 12 2z"/></svg>';
+  const MAKERS = CFG.makers || [];
+  const maker = repo => MAKERS.find(m => lc(m.user) === lc(repo.split('/')[0]));
+  const COPY = '<svg class="s" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>';
   const nav = (i, n) => n > 1 ? `<span class="nav">${[-1, 1].map(d => `<button class="tool" data-go="${d}" aria-label="${d < 0 ? 'Previous' : 'Next'} app" title="${d < 0 ? 'Previous' : 'Next'} app"><svg class="s" viewBox="0 0 24 24" aria-hidden="true"><path d="${ARROW[d]}"/></svg></button>`).join(`<span class="label">${i + 1} / ${n}</span>`)}</span>` : '';
   const refocus = el => { if (S.foc) el.querySelector(`[data-go="${S.foc}"]`)?.focus({ preventScroll: true }); S.foc = 0; };
   const mono = s => {
@@ -57,7 +65,7 @@
   const brief = s => {
     s = String(s || '').replace(/\s+/g, ' ').trim();
     s = (s.match(/^.*?[.!?](?=\s|$)/)?.[0] || s).replace(/[.!\s]+$/, '');
-    return s.length > 80 ? s.slice(0, 80).replace(/\s+\S*$/, '') + '…' : s;
+    return s.length > 64 ? s.slice(0, 64).replace(/\s+\S*$/, '') + '…' : s;
   };
 
   const plat = n => /\.(sig|blockmap|ya?ml|json|sha\d+|md5|asc|txt|zip|7z|rar|gz|tgz|xz|bz2|zst)$/i.test(n) ? 'other'
@@ -153,7 +161,7 @@
       let id = slug(raw) || slug(owner) || 'app';
       if (ids.has(id)) id = slug(r.repo);
       ids.add(id);
-      const app = { id, repo: r.repo, rel, name: t.name || title(raw), about: brief(t.about ?? r.about), icon: t.icon, zoom: t.zoom };
+      const app = { id, repo: r.repo, rel, name: t.name || title(raw), about: brief(t.about ?? r.about), icon: t.icon };
       app.hue = t.hue ?? [...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
       app.mono = mono(app.name);
       const files = rel.flatMap(x => x.assets);
@@ -169,15 +177,20 @@
       .replace(/`([^`]+)`/g, '<code>$1</code>')
       .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
       .replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
-    let out = '', ul = false;
+    let out = '', ul = false, tb = false;
     for (const line of src.replace(/\r/g, '').replace(/<!--[\s\S]*?-->/g, '').split('\n')) {
       const li = line.match(/^\s*[-*+]\s+(.*)/), h = line.match(/^#{1,6}\s+(.*)/);
       if (li) { out += (ul ? '' : '<ul>') + `<li>${inline(li[1])}</li>`; ul = true; continue; }
       if (ul) { out += '</ul>'; ul = false; }
+      if (/^\s*\|.*\|\s*$/.test(line)) {
+        if (!/^[\s|:-]+$/.test(line)) out += (tb ? '' : '<div class="tbl"><table>') + `<tr>${line.trim().slice(1, -1).split('|').map(c => `<td>${inline(c.trim())}</td>`).join('')}</tr>`, tb = true;
+        continue;
+      }
+      if (tb) { out += '</table></div>'; tb = false; }
       if (h) out += `<h4>${inline(h[1])}</h4>`;
       else if (line.trim()) out += `<p>${inline(line)}</p>`;
     }
-    return out + (ul ? '</ul>' : '');
+    return out + (ul ? '</ul>' : '') + (tb ? '</table></div>' : '');
   }
 
   const list = $('#list'), q = $('#q'), home = $('#home'), page = $('#page'), hero = $('#hero'), empty = $('#empty'), prefs = $('#prefs'), det = $('#detect'), syncBtn = $('#sync');
@@ -221,9 +234,10 @@
     page.style.setProperty('--h', app.hue);
     page.style.setProperty('--d', S.dir);
     S.dir = 0;
+    const mk = maker(app.repo), own = app.repo.split('/')[0];
     page.innerHTML = `<div class="step"><a class="back" href="#/"><svg class="s" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5m6-6-6 6 6 6"/></svg>All apps</a>${nav(pool.indexOf(app), pool.length)}</div><header class="phead">${ico(app)}<div><h1>${esc(app.name)}</h1>${
       app.about ? `<p>${esc(app.about)}</p>` : ''}<p class="meta">${app.platforms.map(p => `<span>${glyph(p)}${PLAT[p]}</span>`).join('')}${
-      app.gets ? `<span>${app.gets.toLocaleString()} downloads</span>` : ''}<a href="https://github.com/${esc(app.repo)}" target="_blank" rel="noopener">${esc(app.repo)} ↗</a></p></div></header><div class="split"><aside class="rail"><h3 class="label">Versions</h3>${
+      app.gets ? `<span>${app.gets.toLocaleString()} downloads</span>` : ''}</p><p class="src"><a class="repo" href="https://github.com/${esc(app.repo)}" target="_blank" rel="noopener">${GH}<span>${esc(app.repo)}</span></a><a class="by" href="https://github.com/${esc(own)}" target="_blank" rel="noopener">by ${esc(own)}${mk ? `<em>${esc(mk.tag)}</em>` : ''}</a></p></div></header><div class="split"><aside class="rail"><h3 class="label">Versions</h3>${
       rel.length > 6 ? `<input class="vq" type="search" placeholder="Filter versions" aria-label="Filter versions" value="${esc(S.vq)}">` : ''}${
       mixed ? `<div class="chips">${[['all', 'All'], ['stable', 'Stable'], ['pre', 'Pre-release']].map(([c, t]) => `<button data-c="${c}" aria-pressed="${S.chan === c}">${t}</button>`).join('')}</div>` : ''
     }<ol class="vers"></ol></aside><article class="rel"></article></div>`;
@@ -248,12 +262,33 @@
     const r = app.rel.find(x => x.tag === S.tag) || latestOf(app), main = best(r);
     const of = p => r.assets.filter(a => a.p === p).sort(byRank);
     const kinds = [...new Set([S.plat, S.host, ...KNOWN])].filter(p => of(p).length);
+    const sel = kinds.includes(S.qp) ? S.qp : main?.p || kinds[0];
     box.innerHTML = `<header><h2>${esc(r.tag)}</h2><p>${date(r.date)} · ${r.pre ? 'Pre-release' : 'Stable'}${r.name && r.name !== r.tag ? ' · ' + esc(r.name) : ''}</p></header><div class="dls">${
       kinds.map(p => { const a = of(p)[0]; return `<a class="dl${a === main ? ' on' : ''}" href="${esc(a.u)}">${glyph(p)}<span><b>${PLAT[p]}</b><small>${[ext(a.n), arch(a.n), size(a.s)].filter(Boolean).join(' · ')}</small></span></a>`; }).join('')}</div>${
+      sel ? `<section class="scan"><div class="code"></div><div class="scan-body"><h3 class="label">Scan or copy</h3>${kinds.length > 1 ? `<div class="chips">${kinds.map(p => `<button data-qp="${p}" aria-pressed="${p === sel}">${glyph(p)}${PLAT[p]}</button>`).join('')}</div>` : ''}<p class="fname"></p><div class="copy"><input readonly aria-label="Download link"><button class="btn" data-copy>${COPY}<span>Copy</span></button></div></div></section>` : ''}${
       r.body ? `<section class="notes"><h3 class="label">What’s new</h3>${md(r.body)}</section>` : ''}<section class="files"><h3 class="label">All files</h3>${
       [...kinds, 'other'].filter(p => of(p).length).map(p => `<div class="group"><h4>${PLAT[p]}</h4>${of(p).map(a =>
         `<a class="file" href="${esc(a.u)}"><span>${esc(a.n)}</span><span>${arch(a.n)}</span><span>${size(a.s)}</span><span>${(a.c || 0).toLocaleString()} ↓</span></a>`).join('')}</div>`).join('')
-    }</section><p class="links"><a href="${esc(r.url)}" target="_blank" rel="noopener">Release page ↗</a><a href="${esc(r.zip)}">Source .zip</a></p>`;
+    }</section><p class="links"><a href="${esc(r.url)}" target="_blank" rel="noopener">Release page ↗</a><a href="${esc(r.zip)}">Source .zip</a><a href="https://github.com/${esc(app.repo)}" target="_blank" rel="noopener">Repository ↗</a></p>`;
+    if (sel) scan(of(sel)[0]);
+  }
+
+  function scan(a) {
+    const box = $('.scan', page);
+    if (!box) return;
+    $('.code', box).innerHTML = window.QR ? window.QR(a.u) : '';
+    $('.fname', box).textContent = `${a.n} · ${size(a.s)}`;
+    $('input', box).value = a.u;
+    $('[data-copy] span', box).textContent = 'Copy';
+  }
+
+  async function copy(btn) {
+    const inp = $('.scan input', page), t = $('span', btn);
+    try { await navigator.clipboard.writeText(inp.value); }
+    catch { inp.select(); document.execCommand('copy'); }
+    t.textContent = 'Copied';
+    clearTimeout(btn.t);
+    btn.t = setTimeout(() => { t.textContent = 'Copy'; }, 1600);
   }
 
   function match(app) {
@@ -310,7 +345,7 @@
       const li = app.li = document.createElement('li'), r = latestOf(app);
       li.className = 'app hue';
       li.style.cssText = `--h:${app.hue};--i:${i}`;
-      li.innerHTML = `<a class="tile" href="#/${app.id}">${ico(app)}<span class="name">${esc(app.name)}</span><span class="brief">${esc(app.about)}</span></a><div class="hits"></div><div class="foot"><span class="plats" role="img" aria-label="${app.platforms.map(p => PLAT[p]).join(', ')}">${app.platforms.map(glyph).join('')}</span><span class="ver">${esc(r.tag)}</span><a class="quick"></a></div>`;
+      li.innerHTML = `<a class="tile" href="#/${app.id}">${ico(app)}<span class="name">${esc(app.name)}</span><span class="brief">${esc(app.about)}</span></a><a class="gh" href="https://github.com/${esc(app.repo)}" target="_blank" rel="noopener" title="${esc(app.repo)}" aria-label="Repository ${esc(app.repo)}">${GH}</a><div class="hits"></div><div class="foot"><span class="plats" role="img" aria-label="${app.platforms.map(p => PLAT[p]).join(', ')}">${app.platforms.map(glyph).join('')}</span><span class="ver">${esc(r.tag)}</span><a class="quick"></a></div>`;
       list.append(li);
       cell(app);
     });
@@ -426,9 +461,15 @@
   home.addEventListener('click', () => { S.y = scrollY; });
 
   page.addEventListener('click', e => {
-    const app = S.open, v = e.target.closest('[data-tag]'), c = e.target.closest('[data-c]');
+    const app = S.open, v = e.target.closest('[data-tag]'), c = e.target.closest('[data-c]'), qp = e.target.closest('[data-qp]'), cp = e.target.closest('[data-copy]');
     if (!app) return;
-    if (v) {
+    if (cp) copy(cp);
+    else if (qp) {
+      S.qp = qp.dataset.qp;
+      for (const b of qp.parentNode.children) b.setAttribute('aria-pressed', b === qp);
+      const r = app.rel.find(x => x.tag === S.tag) || latestOf(app);
+      scan(r.assets.filter(a => a.p === S.qp).sort(byRank)[0]);
+    } else if (v) {
       S.tag = v.dataset.tag;
       history.replaceState(null, '', `#/${app.id}/${encodeURIComponent(S.tag)}`);
       for (const b of page.querySelectorAll('[data-tag]')) b.setAttribute('aria-current', b === v);
@@ -439,6 +480,8 @@
       rail(app);
     }
   });
+
+  page.addEventListener('focusin', e => { if (e.target.matches('.scan input')) e.target.select(); });
 
   page.addEventListener('input', e => {
     if (e.target.matches('.vq') && S.open) { S.vq = e.target.value; rail(S.open); }
@@ -486,6 +529,7 @@
 
   document.title = CFG.name;
   $('#site').textContent = CFG.name;
+  $('#makers').innerHTML = MAKERS.map(m => `<a href="https://github.com/${esc(m.user)}" target="_blank" rel="noopener">${GH}<span>${esc(m.user)}</span><em>${esc(m.tag)}</em></a>`).join('');
   theme(MODES.includes(store.get('theme')) ? store.get('theme') : 'auto');
   detect(store.get('detect') === '1');
   boot();

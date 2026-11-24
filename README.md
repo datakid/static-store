@@ -8,24 +8,32 @@ Static download store for Windows, macOS, Linux and Android apps. Apps, versions
 - Owners scanned: `datakid`, `nickburser122` (public, non-fork, non-archived repos)  
 - A release is shown only if it has at least one real Windows, macOS, Linux or Android installer (`.exe`, `.msi`, `.msix`, `.dmg`, `.pkg`, `.AppImage`, `.deb`, `.rpm`, `.flatpak`, `.snap`, `.apk`, `.aab`); an app is shown only if it has such a release  
 - Archives (`.zip`, `.7z`, `.rar`, `.tar.gz`, `.tgz`, `.xz`, `.bz2`, `.zst`), iOS, checksum and signature files stay downloadable under "Other files" on the release, but never count as a platform, so a zip-only release does not list an app  
-- Description: first sentence of the repo's GitHub "About" line, capped at 80 characters  
+- Description: first sentence of the repo's GitHub "About" line, capped at 64 characters, or `tune.about`  
 - Name: repo name in title case  
 **Config (**`js/apps.js`**)**  
 - `name` — store name  
 - `owners` — GitHub users or organisations to scan  
 - `repos` — extra `owner/repo` entries  
 - `hide` — `owner/repo` entries to leave out  
-- `tune` — optional per-repo overrides: `{ name, about, hue, icon, zoom }` (`hue` 0–360 sets the accent colour, `icon` is an image path or URL, `zoom` scales the image inside the icon mask to trim a baked-in border)  
+- `makers` — `{ user, tag }` entries shown as profile links in the footer and as the "by" link on app pages (`datakid` Main, `nickburser122` Alt)
+- `tune` — optional per-repo overrides: `{ name, about, hue, icon }` (`hue` 0–360 sets the accent colour, `icon` is a key in `js/icons.js` or an image path / URL)  
 - `tune` keys ignore case and punctuation, so `datakid/ps-tools-`, `datakid/ps-tools` and `datakid/PS_Tools` are the same entry  
-**Icons (**`images/`**)**  
-- `tacit.jpg` → `nickburser122/tacit`  
-- `polars-desktop.jpg` → `datakid/polars-desktop-demo`  
-- `duck-bars.jpg` → `datakid/duckbench`  
-- `duck-grid.jpg` → `datakid/duckbench-tauri-demo`  
-- `contact-flow.jpg` → `datakid/contact-flow`  
-- `ps-tools.jpg` → `datakid/ps-tools-` (shows up once that repo publishes a release with a real installer)  
+**Icons (**`js/icons.js`**)**  
+- Inline SVG redraws of the original artwork on a 64×64 grid, clipped to one shared squircle mask: no image requests, sharp at any size, no black placeholder while loading  
+- `tacit` → `nickburser122/tacit`  
+- `polars` → `datakid/polars-desktop-demo`  
+- `duckbars` → `datakid/duckbench`  
+- `duckgrid` → `datakid/duckbench-tauri-demo`  
+- `contactflow` → `datakid/contact-flow`  
+- `pstools` → `datakid/ps-tools-` (shows up once that repo publishes a release with a real installer)  
+- Apps without an icon get a monogram on an accent gradient  
+**QR (**`js/qr.js`**)**  
+- Built-in QR encoder (byte mode, ECC level L, versions 1–13), output as SVG; no library, no network  
 **Features**  
-- Grid of app cards with icons, platform glyphs, latest version and a Get button  
+- Grid of app cards with icons, platform glyphs, latest version, a Get button and a GitHub repo link  
+- App page: repository link and maker link (Main / Alt) under the title; Repository link next to the release links  
+- App page: Scan or copy panel with a QR code of the direct download link, a platform switch and a Copy button  
+- Footer: links to both maker profiles  
 - Featured panel with previous / next arrows and a position counter; it steps through the apps left by the platform filter  
 - App page: the same arrows move to the previous / next app in the filtered list  
 - Left / Right arrow keys do the same on both views when no text field is focused  
