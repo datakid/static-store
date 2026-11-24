@@ -54,8 +54,8 @@
   const GH = '<svg class="g" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-3.2 19.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.4-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.3-2.2-.3-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.2-.4-1.3.1-2.7 0 0 .8-.3 2.8 1a9.6 9.6 0 0 1 5 0c1.9-1.3 2.8-1 2.8-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.7-4.6 5 .4.3.7.9.7 1.9V21c0 .3.2.6.7.5A10 10 0 0 0 12 2z"/></svg>';
   const MAKERS = CFG.makers || [];
   const maker = repo => MAKERS.find(m => lc(m.user) === lc(repo.split('/')[0]));
-  const COPY = '<svg class="s" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>';
-  const nav = (i, n) => n > 1 ? `<span class="nav">${[-1, 1].map(d => `<button class="tool" data-go="${d}" aria-label="${d < 0 ? 'Previous' : 'Next'} app" title="${d < 0 ? 'Previous' : 'Next'} app"><svg class="s" viewBox="0 0 24 24" aria-hidden="true"><path d="${ARROW[d]}"/></svg></button>`).join(`<span class="label">${i + 1} / ${n}</span>`)}</span>` : '';
+  const COPY = '<svg class="s ok" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg><svg class="s cp" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>';
+  const nav = (i, n) => n > 1 ? `<span class="nav">${[-1, 1].map(d => `<button class="tool" data-go="${d}" aria-label="${d < 0 ? 'Previous' : 'Next'} app" data-tip="${d < 0 ? 'Previous' : 'Next'} app"><svg class="s" viewBox="0 0 24 24" aria-hidden="true"><path d="${ARROW[d]}"/></svg></button>`).join(`<span class="label">${i + 1} / ${n}</span>`)}</span>` : '';
   const refocus = el => { if (S.foc) el.querySelector(`[data-go="${S.foc}"]`)?.focus({ preventScroll: true }); S.foc = 0; };
   const mono = s => {
     const w = s.replace(/([a-z])([A-Z])/g, '$1 $2').match(/[A-Za-z0-9]+/g) || ['?'];
@@ -161,7 +161,7 @@
       let id = slug(raw) || slug(owner) || 'app';
       if (ids.has(id)) id = slug(r.repo);
       ids.add(id);
-      const app = { id, repo: r.repo, rel, name: t.name || title(raw), about: brief(t.about ?? r.about), icon: t.icon };
+      const app = { id, repo: r.repo, rel, name: t.name || title(raw), about: t.about ?? brief(r.about), icon: t.icon };
       app.hue = t.hue ?? [...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
       app.mono = mono(app.name);
       const files = rel.flatMap(x => x.assets);
@@ -213,7 +213,7 @@
     if (!a) { hero.innerHTML = shown = ''; return; }
     const b = n > 1 ? VIS[(i + n - 1) % n] : null, c = n > 2 ? VIS[(i + 1) % n] : null;
     const r = latestOf(a), f = best(r), to = `#/${a.id}`;
-    const stand = (x, cls) => x ? `<a class="${cls}" href="#/${x.id}" tabindex="-1" title="${esc(x.name)}">${ico(x)}</a>` : '';
+    const stand = (x, cls) => x ? `<a class="${cls}" href="#/${x.id}" tabindex="-1">${ico(x)}</a>` : '';
     hero.style.setProperty('--h', a.hue);
     const html = `<div class="step"><p class="label">${i ? 'Released' : 'Latest release'} · ${date(r.date)}</p>${nav(i, n)}</div><div><h1><a href="${to}">${esc(a.name)}</a></h1>${
       a.about ? `<p class="lead">${esc(a.about)}</p>` : ''}<p class="acts">${
@@ -279,7 +279,9 @@
     $('.code', box).innerHTML = window.QR ? window.QR(a.u) : '';
     $('.fname', box).textContent = `${a.n} · ${size(a.s)}`;
     $('input', box).value = a.u;
-    $('[data-copy] span', box).textContent = 'Copy';
+    const b = $('[data-copy]', box);
+    delete b.dataset.ok;
+    $('span', b).textContent = 'Copy';
   }
 
   async function copy(btn) {
@@ -287,8 +289,9 @@
     try { await navigator.clipboard.writeText(inp.value); }
     catch { inp.select(); document.execCommand('copy'); }
     t.textContent = 'Copied';
+    btn.dataset.ok = '';
     clearTimeout(btn.t);
-    btn.t = setTimeout(() => { t.textContent = 'Copy'; }, 1600);
+    btn.t = setTimeout(() => { t.textContent = 'Copy'; delete btn.dataset.ok; }, 1600);
   }
 
   function match(app) {
@@ -345,7 +348,7 @@
       const li = app.li = document.createElement('li'), r = latestOf(app);
       li.className = 'app hue';
       li.style.cssText = `--h:${app.hue};--i:${i}`;
-      li.innerHTML = `<a class="tile" href="#/${app.id}">${ico(app)}<span class="name">${esc(app.name)}</span><span class="brief">${esc(app.about)}</span></a><a class="gh" href="https://github.com/${esc(app.repo)}" target="_blank" rel="noopener" title="${esc(app.repo)}" aria-label="Repository ${esc(app.repo)}">${GH}</a><div class="hits"></div><div class="foot"><span class="plats" role="img" aria-label="${app.platforms.map(p => PLAT[p]).join(', ')}">${app.platforms.map(glyph).join('')}</span><span class="ver">${esc(r.tag)}</span><a class="quick"></a></div>`;
+      li.innerHTML = `<a class="tile" href="#/${app.id}">${ico(app)}<span class="name">${esc(app.name)}</span><span class="brief">${esc(app.about)}</span></a><a class="gh" href="https://github.com/${esc(app.repo)}" target="_blank" rel="noopener" data-tip="${esc(app.repo)}" aria-label="Repository ${esc(app.repo)}">${GH}</a><div class="hits"></div><div class="foot"><span class="plats" role="img" aria-label="${app.platforms.map(p => PLAT[p]).join(', ')}">${app.platforms.map(glyph).join('')}</span><span class="ver">${esc(r.tag)}</span><a class="quick"></a></div>`;
       list.append(li);
       cell(app);
     });
@@ -371,7 +374,7 @@
     const text = lim ? (net.t ? base + ' · limit resets ' : 'GitHub limit resets ') + stamp(net.until) : net.bad ? base + ' · token rejected' : base;
     $('#state').textContent = text;
     $('#when').textContent = net.t ? stamp(net.t) : 'Sync';
-    syncBtn.title = text;
+    syncBtn.dataset.tip = text;
     $('#quota').textContent = net.cap ? `${net.left.toLocaleString()} of ${net.cap.toLocaleString()} GitHub requests left` : '';
   }
 
@@ -519,7 +522,7 @@
     }
   });
 
-  addEventListener('hashchange', () => route());
+  addEventListener('hashchange', () => document.startViewTransition && !matchMedia('(prefers-reduced-motion:reduce)').matches ? document.startViewTransition(() => route()) : route());
 
   async function boot() {
     const old = await collect({ stale: true });
