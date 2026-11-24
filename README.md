@@ -16,7 +16,7 @@ Static download store for Windows, macOS, Linux and Android apps. Apps, versions
 - `repos` — extra `owner/repo` entries  
 - `hide` — `owner/repo` entries to leave out  
 - `makers` — `{ user, tag }` entries shown as profile links in the footer and as the "by" link on app pages (`datakid` Main, `nickburser122` Alt)
-- `tune` — optional per-repo overrides: `{ name, about, hue, icon }` (`hue` 0–360 sets the accent colour, `icon` is a key in `js/icons.js` or an image path / URL)  
+- `tune` — optional per-repo overrides: `{ name, about, hue, icon, zoom }` (`hue` 0–360 sets the accent colour, `icon` is a key in `js/icons.js` or an image path / URL, `zoom` scales an image icon inside its tile)  
 - `tune` keys ignore case and punctuation, so `datakid/ps-tools-`, `datakid/ps-tools` and `datakid/PS_Tools` are the same entry  
 **Icons (**`js/icons.js`**)**  
 - Inline SVG redraws of the original artwork on a 64×64 grid, clipped to one shared squircle mask: no image requests, sharp at any size, no black placeholder while loading  
@@ -24,11 +24,17 @@ Static download store for Windows, macOS, Linux and Android apps. Apps, versions
 - `polars` → `datakid/polars-desktop-demo`  
 - `duckbars` → `datakid/duckbench`  
 - `duckgrid` → `datakid/duckbench-tauri-demo`  
-- `contactflow` → `datakid/contact-flow`  
+- `datakid/contact-flow` uses the original artwork file `images/contact-flow.jpg` (image icon, `zoom: 1.25`), not a redraw  
 - `pstools` → `datakid/ps-tools-` (shows up once that repo publishes a release with a real installer)  
 - Apps without an icon get a monogram on an accent gradient  
 **QR (**`js/qr.js`**)**  
 - Built-in QR encoder (byte mode, ECC level L, versions 1–13), output as SVG; no library, no network  
+**Interface**  
+- Floating glass top bar, pill controls, system sans display type, light and dark themes  
+- Spring easing on press and hover, pointer-following highlight on app cards, staggered card entrance (replayed on platform filter)  
+- The app icon morphs between its card and the app page (View Transitions); the featured panel's accent hue animates between apps  
+- Version rail stays in view while release details scroll; settings open as a bottom sheet on phones  
+- All motion is switched off under `prefers-reduced-motion`  
 **Features**  
 - Grid of app cards with icons, platform glyphs, latest version, a Get button and a GitHub repo link  
 - App page: repository link and maker link (Main / Alt) under the title; Repository link next to the release links  
@@ -43,7 +49,7 @@ Static download store for Windows, macOS, Linux and Android apps. Apps, versions
 - Sync button: rechecks GitHub now, ignoring the 15 minute cache  
 - Settings: Auto / Light / Dark theme, Match my device, GitHub token  
 - No CDN, no web fonts, no third-party scripts  
-- Offline: `sw.js` caches the site files and the last GitHub data is kept in `localStorage`  
+- Offline: `sw.js` (cache `shelf-4`) caches the site files and the last GitHub data is kept in `localStorage`  
 **GitHub token**  
 - Optional. Raises the GitHub limit from 60 to 5,000 requests an hour  
 - A fine-grained token with read-only access to public repositories is enough  

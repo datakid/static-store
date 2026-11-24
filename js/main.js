@@ -49,7 +49,7 @@
   const ICONS = window.ICONS || {};
   const ico = app => ICONS[app.icon]
     ? `<span class="ico art" aria-hidden="true"><svg viewBox="0 0 64 64">${ICONS[app.icon]}</svg></span>`
-    : app.icon ? `<span class="ico art" aria-hidden="true"><img src="${esc(app.icon)}" alt="" decoding="async"></span>`
+    : app.icon ? `<span class="ico art" aria-hidden="true"><img src="${esc(app.icon)}" alt="" decoding="async" style="scale:${+app.zoom || 1}"></span>`
     : `<span class="ico" style="--h:${app.hue}" aria-hidden="true"><b>${esc(app.mono)}</b></span>`;
   const GH = '<svg class="g" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-3.2 19.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.4-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.3-2.2-.3-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.2-.4-1.3.1-2.7 0 0 .8-.3 2.8 1a9.6 9.6 0 0 1 5 0c1.9-1.3 2.8-1 2.8-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.7-4.6 5 .4.3.7.9.7 1.9V21c0 .3.2.6.7.5A10 10 0 0 0 12 2z"/></svg>';
   const MAKERS = CFG.makers || [];
@@ -161,7 +161,7 @@
       let id = slug(raw) || slug(owner) || 'app';
       if (ids.has(id)) id = slug(r.repo);
       ids.add(id);
-      const app = { id, repo: r.repo, rel, name: t.name || title(raw), about: t.about ?? brief(r.about), icon: t.icon };
+      const app = { id, repo: r.repo, rel, name: t.name || title(raw), about: t.about ?? brief(r.about), icon: t.icon, zoom: t.zoom };
       app.hue = t.hue ?? [...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
       app.mono = mono(app.name);
       const files = rel.flatMap(x => x.assets);
@@ -459,9 +459,20 @@
     for (const x of b.parentNode.children) x.setAttribute('aria-pressed', (x.dataset.p || null) === S.plat);
     update();
     APPS.forEach(cell);
+    list.classList.add('again');
+    void list.offsetWidth;
+    list.classList.remove('again');
   });
 
   home.addEventListener('click', () => { S.y = scrollY; });
+
+  list.addEventListener('pointermove', e => {
+    const c = e.target.closest('.app');
+    if (!c) return;
+    const r = c.getBoundingClientRect();
+    c.style.setProperty('--mx', e.clientX - r.left + 'px');
+    c.style.setProperty('--my', e.clientY - r.top + 'px');
+  });
 
   page.addEventListener('click', e => {
     const app = S.open, v = e.target.closest('[data-tag]'), c = e.target.closest('[data-c]'), qp = e.target.closest('[data-qp]'), cp = e.target.closest('[data-copy]');
@@ -522,7 +533,13 @@
     }
   });
 
-  addEventListener('hashchange', () => document.startViewTransition && !matchMedia('(prefers-reduced-motion:reduce)').matches ? document.startViewTransition(() => route()) : route());
+  addEventListener('hashchange', () => {
+    const id = location.hash.replace(/^#\/?/, '').split('/')[0];
+    const to = (id && (APPS.find(a => a.id === id) || APPS.find(a => a.id.startsWith(id)))) || S.open;
+    for (const a of APPS) $('.ico', a.li).style.viewTransitionName = a === to ? 'ico' : '';
+    if (document.startViewTransition && !matchMedia('(prefers-reduced-motion:reduce)').matches) document.startViewTransition(() => route());
+    else route();
+  });
 
   async function boot() {
     const old = await collect({ stale: true });
