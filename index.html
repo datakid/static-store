@@ -10,6 +10,8 @@
 <title>Shelf</title>
 <link id="icon" rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="manifest" href="manifest.webmanifest">
+<link rel="preload" href="fonts/geist.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/geist-mono.woff2" as="font" type="font/woff2" crossorigin>
 <script>try{var t=localStorage.theme;if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}</script>
 <link rel="stylesheet" href="css/style.css">
 </head>
@@ -78,7 +80,7 @@
         <button class="btn">Save</button>
       </form>
       <p id="tstate" role="status"></p>
-      <p class="pair"><a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">Create a token ↗</a><button id="tdrop" class="link" hidden>Remove token</button></p>
+      <p class="pair"><a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">Create a token</a><button id="tdrop" class="link" hidden>Remove token</button></p>
       <p>Kept in this browser’s storage and sent only to api.github.com.</p>
     </section>
   </div>

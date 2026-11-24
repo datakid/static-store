@@ -52,6 +52,7 @@
     : app.icon ? `<span class="ico art" aria-hidden="true"><img src="${esc(app.icon)}" alt="" decoding="async" style="scale:${+app.zoom || 1}"></span>`
     : `<span class="ico" style="--h:${app.hue}" aria-hidden="true"><b>${esc(app.mono)}</b></span>`;
   const GH = '<svg class="g" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-3.2 19.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.4-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.3-2.2-.3-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.2-.4-1.3.1-2.7 0 0 .8-.3 2.8 1a9.6 9.6 0 0 1 5 0c1.9-1.3 2.8-1 2.8-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.7-4.6 5 .4.3.7.9.7 1.9V21c0 .3.2.6.7.5A10 10 0 0 0 12 2z"/></svg>';
+  const qrb = (u, t) => `<button class="qrb" data-qr="${esc(u)}" data-ql="${esc(t)}" title="QR and copy link" aria-label="QR code and link for ${esc(t)}"><svg class="s" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h3v3h-3zM20 17v3h-3M14 20h.01M20 14h.01"/></svg></button>`;
   const MAKERS = CFG.makers || [];
   const maker = repo => MAKERS.find(m => lc(m.user) === lc(repo.split('/')[0]));
   const COPY = '<svg class="s ok" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg><svg class="s cp" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>';
@@ -161,7 +162,7 @@
       let id = slug(raw) || slug(owner) || 'app';
       if (ids.has(id)) id = slug(r.repo);
       ids.add(id);
-      const app = { id, repo: r.repo, rel, name: t.name || title(raw), about: t.about ?? brief(r.about), icon: t.icon, zoom: t.zoom };
+      const app = { id, repo: r.repo, rel, name: t.name || title(raw), about: t.about ?? brief(r.about), more: t.more, stack: t.stack, engine: t.engine, icon: t.icon, zoom: t.zoom };
       app.hue = t.hue ?? [...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
       app.mono = mono(app.name);
       const files = rel.flatMap(x => x.assets);
@@ -234,10 +235,10 @@
     page.style.setProperty('--h', app.hue);
     page.style.setProperty('--d', S.dir);
     S.dir = 0;
-    const mk = maker(app.repo), own = app.repo.split('/')[0];
+    const mk = maker(app.repo), own = app.repo.split('/')[0], spec = app.stack ? `<p class="spec"><span><i>Stack</i>${esc(app.stack)}</span>${app.engine ? `<span><i>Engine</i>${esc(app.engine)}</span>` : ''}</p>` : '';
     page.innerHTML = `<div class="step"><a class="back" href="#/"><svg class="s" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5m6-6-6 6 6 6"/></svg>All apps</a>${nav(pool.indexOf(app), pool.length)}</div><header class="phead">${ico(app)}<div><h1>${esc(app.name)}</h1>${
-      app.about ? `<p>${esc(app.about)}</p>` : ''}<p class="meta">${app.platforms.map(p => `<span>${glyph(p)}${PLAT[p]}</span>`).join('')}${
-      app.gets ? `<span>${app.gets.toLocaleString()} downloads</span>` : ''}</p><p class="src"><a class="repo" href="https://github.com/${esc(app.repo)}" target="_blank" rel="noopener">${GH}<span>${esc(app.repo)}</span></a><a class="by" href="https://github.com/${esc(own)}" target="_blank" rel="noopener">by ${esc(own)}${mk ? `<em>${esc(mk.tag)}</em>` : ''}</a></p></div></header><div class="split"><aside class="rail"><h3 class="label">Versions</h3>${
+      app.more || app.about ? `<p>${esc(app.more || app.about)}</p>` : ''}<p class="meta">${app.platforms.map(p => `<span>${glyph(p)}${PLAT[p]}</span>`).join('')}${
+      app.gets ? `<span>${app.gets.toLocaleString()} downloads</span>` : ''}</p>${spec}<p class="src"><a class="repo" href="https://github.com/${esc(app.repo)}" target="_blank" rel="noopener">${GH}<span>${esc(app.repo)}</span></a><a class="by" href="https://github.com/${esc(own)}" target="_blank" rel="noopener">by ${esc(own)}${mk ? `<em>${esc(mk.tag)}</em>` : ''}</a></p></div></header><div class="split"><aside class="rail"><h3 class="label">Versions</h3>${
       rel.length > 6 ? `<input class="vq" type="search" placeholder="Filter versions" aria-label="Filter versions" value="${esc(S.vq)}">` : ''}${
       mixed ? `<div class="chips">${[['all', 'All'], ['stable', 'Stable'], ['pre', 'Pre-release']].map(([c, t]) => `<button data-c="${c}" aria-pressed="${S.chan === c}">${t}</button>`).join('')}</div>` : ''
     }<ol class="vers"></ol></aside><article class="rel"></article></div>`;
@@ -268,17 +269,22 @@
       sel ? `<section class="scan"><div class="code"></div><div class="scan-body"><h3 class="label">Scan or copy</h3>${kinds.length > 1 ? `<div class="chips">${kinds.map(p => `<button data-qp="${p}" aria-pressed="${p === sel}">${glyph(p)}${PLAT[p]}</button>`).join('')}</div>` : ''}<p class="fname"></p><div class="copy"><input readonly aria-label="Download link"><button class="btn" data-copy>${COPY}<span>Copy</span></button></div></div></section>` : ''}${
       r.body ? `<section class="notes"><h3 class="label">What’s new</h3>${md(r.body)}</section>` : ''}<section class="files"><h3 class="label">All files</h3>${
       [...kinds, 'other'].filter(p => of(p).length).map(p => `<div class="group"><h4>${PLAT[p]}</h4>${of(p).map(a =>
-        `<a class="file" href="${esc(a.u)}"><span>${esc(a.n)}</span><span>${arch(a.n)}</span><span>${size(a.s)}</span><span>${(a.c || 0).toLocaleString()} ↓</span></a>`).join('')}</div>`).join('')
-    }</section><p class="links"><a href="${esc(r.url)}" target="_blank" rel="noopener">Release page ↗</a><a href="${esc(r.zip)}">Source .zip</a><a href="https://github.com/${esc(app.repo)}" target="_blank" rel="noopener">Repository ↗</a></p>`;
+        `<div class="file"><a href="${esc(a.u)}">${esc(a.n)}</a><span>${arch(a.n)}</span><span>${size(a.s)}</span><span>${(a.c || 0).toLocaleString()} ↓</span>${qrb(a.u, a.n)}</div>`).join('')}</div>`).join('')
+    }</section><p class="links">${[['Release page', r.url, 1], ['Source .zip', r.zip], ['Repository', 'https://github.com/' + app.repo, 1]].map(([t, u, x]) => `<span><a href="${esc(u)}"${x ? ' target="_blank" rel="noopener"' : ''}>${t}</a>${qrb(u, t)}</span>`).join('')}</p>`;
     if (sel) scan(of(sel)[0]);
   }
 
-  function scan(a) {
+  function scan(a, jump) {
     const box = $('.scan', page);
     if (!box) return;
-    $('.code', box).innerHTML = window.QR ? window.QR(a.u) : '';
+    $('.code', box).innerHTML = (window.QR && window.QR(a.u)) || '<span>Too long for a QR code</span>';
     $('.fname', box).textContent = `${a.n} · ${size(a.s)}`;
     $('input', box).value = a.u;
+    if (!a.s) $('.fname', box).textContent = a.n;
+    box.classList.remove('lit');
+    void box.offsetWidth;
+    box.classList.add('lit');
+    if (jump) box.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion:reduce)').matches ? 'auto' : 'smooth', block: 'center' });
     const b = $('[data-copy]', box);
     delete b.dataset.ok;
     $('span', b).textContent = 'Copy';
@@ -297,7 +303,7 @@
   function match(app) {
     if (S.plat && !app.platforms.includes(S.plat)) return null;
     const toks = lc(S.q).split(/\s+/).filter(Boolean);
-    const hay = lc([app.name, app.repo, app.about, ...app.platforms.map(p => PLAT[p])].join(' '));
+    const hay = lc([app.name, app.repo, app.about, app.more, app.stack, app.engine, ...app.platforms.map(p => PLAT[p])].join(' '));
     const rest = toks.filter(t => !hay.includes(t));
     if (!rest.length) return [];
     const hits = app.rel.filter(r => { const h = lc(`${r.tag} ${r.name || ''}`); return rest.every(t => h.includes(t)); });
@@ -348,7 +354,7 @@
       const li = app.li = document.createElement('li'), r = latestOf(app);
       li.className = 'app hue';
       li.style.cssText = `--h:${app.hue};--i:${i}`;
-      li.innerHTML = `<a class="tile" href="#/${app.id}">${ico(app)}<span class="name">${esc(app.name)}</span><span class="brief">${esc(app.about)}</span></a><a class="gh" href="https://github.com/${esc(app.repo)}" target="_blank" rel="noopener" data-tip="${esc(app.repo)}" aria-label="Repository ${esc(app.repo)}">${GH}</a><div class="hits"></div><div class="foot"><span class="plats" role="img" aria-label="${app.platforms.map(p => PLAT[p]).join(', ')}">${app.platforms.map(glyph).join('')}</span><span class="ver">${esc(r.tag)}</span><a class="quick"></a></div>`;
+      li.innerHTML = `<a class="tile" href="#/${app.id}">${ico(app)}<span class="name">${esc(app.name)}</span><span class="brief">${esc(app.about)}</span>${app.stack ? `<span class="tech">${esc(app.stack)}</span>` : ''}</a><a class="gh" href="https://github.com/${esc(app.repo)}" target="_blank" rel="noopener" data-tip="${esc(app.repo)}" aria-label="Repository ${esc(app.repo)}">${GH}</a><div class="hits"></div><div class="foot"><span class="plats" role="img" aria-label="${app.platforms.map(p => PLAT[p]).join(', ')}">${app.platforms.map(glyph).join('')}</span><span class="ver">${esc(r.tag)}</span><a class="quick"></a></div>`;
       list.append(li);
       cell(app);
     });
@@ -475,9 +481,10 @@
   });
 
   page.addEventListener('click', e => {
-    const app = S.open, v = e.target.closest('[data-tag]'), c = e.target.closest('[data-c]'), qp = e.target.closest('[data-qp]'), cp = e.target.closest('[data-copy]');
+    const app = S.open, v = e.target.closest('[data-tag]'), c = e.target.closest('[data-c]'), qp = e.target.closest('[data-qp]'), cp = e.target.closest('[data-copy]'), qr = e.target.closest('[data-qr]');
     if (!app) return;
     if (cp) copy(cp);
+    else if (qr) { for (const b of page.querySelectorAll('[data-qp]')) b.setAttribute('aria-pressed', false); scan({ u: qr.dataset.qr, n: qr.dataset.ql }, true); }
     else if (qp) {
       S.qp = qp.dataset.qp;
       for (const b of qp.parentNode.children) b.setAttribute('aria-pressed', b === qp);
