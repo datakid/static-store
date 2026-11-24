@@ -1,6 +1,6 @@
 window.STORE = {
   name: 'Shelf',
-  owners: ['datakid'],
+  owners: ['datakid', 'nickburser122'],
   repos: ['nickburser122/tacit'],
   hide: ['datakid/static-store'],
   tune: {

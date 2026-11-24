@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#f3efe3" media="(prefers-color-scheme:light)">
 <meta name="theme-color" content="#1e1823" media="(prefers-color-scheme:dark)">
-<meta name="description" content="App downloads, every version.">
+<meta name="description" content="Windows, Linux and Android apps, every version.">
 <title>Shelf</title>
 <link id="icon" rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="manifest" href="manifest.webmanifest">
@@ -19,30 +19,69 @@
     <svg viewBox="5 8 22 19" aria-hidden="true"><rect class="i" x="8" y="9" width="4" height="13.5" rx="1.2"/><rect class="a" x="13.5" y="12" width="4" height="10.5" rx="1.2"/><rect class="i" x="20.5" y="10" width="4" height="12.5" rx="1.2" transform="rotate(-12 20.5 22.5)"/><rect class="i" x="6" y="23.5" width="20" height="2.5" rx="1.25"/></svg>
     <span id="site">Shelf</span>
   </a>
-  <button id="theme"></button>
+  <label class="search">
+    <svg class="s" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
+    <input id="q" type="search" placeholder="Search apps and versions" autocomplete="off" spellcheck="false" aria-label="Search apps, versions, platforms">
+    <kbd>/</kbd>
+  </label>
+  <div class="tools">
+    <button id="sync" class="tool" aria-label="Sync with GitHub">
+      <svg class="s" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 0 1-14.3 4.9M4 12a8 8 0 0 1 14.3-4.9M18.5 3v4.2h-4.2M5.5 21v-4.2h4.2"/></svg>
+      <span id="when">Sync</span>
+    </button>
+    <button class="tool" data-prefs aria-label="Settings">
+      <svg class="s" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>
+    </button>
+  </div>
 </header>
 <main aria-busy="true">
-  <section class="find">
-    <label class="search">
-      <input id="q" type="search" placeholder="Search" autocomplete="off" spellcheck="false" aria-label="Search apps, versions, platforms">
-      <kbd>/</kbd>
-    </label>
-    <div class="bar">
-      <div id="plats" class="chips" role="group" aria-label="Platform"></div>
-      <span id="count" class="label"></span>
-    </div>
-    <div class="sense">
-      <button id="detect" aria-pressed="false" aria-describedby="sense">Detect my system</button>
-      <p id="sense"></p>
-    </div>
-  </section>
-  <ol id="list" class="list"></ol>
-  <p id="empty" class="empty" hidden></p>
+  <div id="home">
+    <section id="hero" class="hero hue" hidden></section>
+    <section>
+      <div class="bar">
+        <h2>All apps</h2>
+        <div id="plats" class="chips" role="group" aria-label="Platform"></div>
+        <span id="count" class="label"></span>
+      </div>
+      <ol id="list" class="grid"><li class="app ghost"></li><li class="app ghost"></li><li class="app ghost"></li><li class="app ghost"></li><li class="app ghost"></li><li class="app ghost"></li></ol>
+      <div id="empty" class="empty" hidden></div>
+    </section>
+  </div>
+  <section id="page" class="page hue" hidden></section>
 </main>
 <footer>
   <span>Releases from GitHub</span>
-  <span id="sync"></span>
+  <span id="quota"></span>
+  <span id="state"></span>
 </footer>
+<dialog id="prefs" aria-labelledby="ptitle">
+  <div class="sheet">
+    <header>
+      <h2 id="ptitle">Settings</h2>
+      <button class="tool" data-close aria-label="Close"><svg class="s" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </header>
+    <section>
+      <h3 class="label">Appearance</h3>
+      <div id="modes" class="chips" role="group" aria-label="Theme"><button data-m="auto">Auto</button><button data-m="light">Light</button><button data-m="dark">Dark</button></div>
+    </section>
+    <section>
+      <h3 class="label">Downloads</h3>
+      <div class="chips"><button id="detect" aria-pressed="false" aria-describedby="sense">Match my device</button></div>
+      <p id="sense"></p>
+    </section>
+    <section>
+      <h3 class="label">GitHub token</h3>
+      <p>GitHub allows 60 requests an hour without a token and 5,000 with one. A fine-grained token with read-only access to public repositories is enough; it needs no other permissions.</p>
+      <form id="tform" class="field">
+        <input id="token" type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_…" aria-label="GitHub token">
+        <button class="btn">Save</button>
+      </form>
+      <p id="tstate" role="status"></p>
+      <p class="pair"><a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">Create a token ↗</a><button id="tdrop" class="link" hidden>Remove token</button></p>
+      <p>Kept in this browser’s storage and sent only to api.github.com.</p>
+    </section>
+  </div>
+</dialog>
 <script src="js/apps.js"></script>
 <script src="js/main.js"></script>
 </body>
