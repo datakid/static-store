@@ -23,8 +23,8 @@ Static download store for Windows, macOS, Linux and Android apps. Apps, versions
 - Inline SVG redraws of the original artwork on a 64×64 grid, clipped to one shared squircle mask: no image requests, sharp at any size, no black placeholder while loading  
 - `tacit` → `nickburser122/tacit`  
 - `polars` → Floe (`datakid/polars-desktop-demo`, also matched as `datakid/floe`)  
-- `duckbars` → `datakid/duckbench`  
-- `duckgrid` → `datakid/duckbench-tauri-demo`  
+- `duckbars` → `datakid/duckbench-2`  
+- `duckgrid` → `datakid/duckbench-tauri`  
 - `datakid/contact-flow` uses the original artwork file `images/contact-flow.jpg` (image icon, `zoom: 1.25`), not a redraw  
 - `pstools` → `datakid/ps-tools-` (shows up once that repo publishes a release with a real installer)  
 - Apps without an icon get a monogram on an accent gradient  

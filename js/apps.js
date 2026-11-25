@@ -17,13 +17,13 @@
     tune: {
       'datakid/floe': floe,
       'datakid/polars-desktop-demo': floe,
-      'datakid/duckbench': {
+      'datakid/duckbench-2': {
         name: 'DuckBench', hue: 22, icon: 'duckbars',
         about: 'Visual data prep and SQL analytics on DuckDB-WASM.',
         more: 'Local-first visual data preparation and SQL analytics for CSV, Excel, JSON and Parquet files, with transformations, joins and large-file processing, built with Tauri 2, Rust, JavaScript and bundled DuckDB-WASM.',
         stack: 'Tauri 2 + Rust + JS', engine: 'DuckDB-WASM'
       },
-      'datakid/duckbench-tauri-demo': {
+      'datakid/duckbench-tauri': {
         name: 'DuckBench Tauri', hue: 22, icon: 'duckgrid',
         about: 'Native data-cleaning workbench on a DuckDB engine.',
         more: 'Native desktop data-cleaning workbench with visual transformations, SQL execution, large-file processing and Excel import/export, built with Tauri 2, Rust and a separate native DuckDB engine process.',
