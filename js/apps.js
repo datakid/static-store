@@ -14,6 +14,8 @@
     ],
     repos: ['nickburser122/tacit'],
     hide: ['datakid/static-store'],
+    seed: ['datakid/floe', 'datakid/duckbench-2', 'datakid/duckbench-tauri', 'datakid/contact-flow', 'nickburser122/tacit'],
+    seeded: '2026-11-28',
     tune: {
       'datakid/floe': floe,
       'datakid/polars-desktop-demo': floe,

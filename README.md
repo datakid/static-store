@@ -16,6 +16,7 @@ Static download store for Windows, macOS, Linux and Android apps. Apps, versions
 - `owners` — GitHub users or organisations to scan  
 - `repos` — extra `owner/repo` entries  
 - `hide` — `owner/repo` entries to leave out  
+- `seed` — `owner/repo` entries with a bundled snapshot in `snap/<owner>__<repo>.json` (the raw GitHub releases response); `seeded` is the snapshot date  
 - `makers` — `{ user, tag }` entries shown as profile links in the footer and as the "by" link on app pages (`datakid` Main, `nickburser122` Alt)
 - `tune` — optional per-repo overrides: `{ name, about, more, stack, engine, hue, icon, zoom }` (`hue` 0–360 sets the accent colour, `icon` is a key in `js/icons.js` or an image path / URL, `zoom` scales an image icon inside its tile)  
 - `tune` keys ignore case and punctuation, so `datakid/ps-tools-`, `datakid/ps-tools` and `datakid/PS_Tools` are the same entry  
@@ -50,7 +51,7 @@ Static download store for Windows, macOS, Linux and Android apps. Apps, versions
 - Sync button: rechecks GitHub now, ignoring the 15 minute cache  
 - Settings: Auto / Light / Dark theme, Match my device, GitHub token  
 - No CDN and no third-party requests: fonts, icons and the QR encoder ship with the site; only `api.github.com` is called  
-- Offline: `sw.js` (cache `shelf-5`) caches the site files and the last GitHub data is kept in `localStorage`  
+- Offline: `sw.js` (cache `shelf-6`) caches the site files and the last GitHub data is kept in `localStorage`  
 **GitHub token**  
 - Optional. Raises the GitHub limit from 60 to 5,000 requests an hour  
 - A fine-grained token with read-only access to public repositories is enough  
@@ -58,7 +59,10 @@ Static download store for Windows, macOS, Linux and Android apps. Apps, versions
 - If GitHub rejects it, requests fall back to no token and the footer says so  
 **Data**  
 - Source: `api.github.com` — `/users/<owner>/repos`, `/repos/<repo>`, `/repos/<repo>/releases`, and `/rate_limit` once when a token is saved  
-- `localStorage` keys: `gh:<path>` (cached responses), `theme`, `detect`, `gh-token`  
+- `localStorage` keys: `gh:<path>` (cached responses), `theme`, `detect`, `gh-token`, `gh-quota` (requests left and reset time, so the reserve holds across reloads)  
 - Cached for 15 minutes with ETag revalidation; repos without releases are rechecked once a day, when pushed to, or on Sync with a token  
-- A first visit costs one request per owner plus one per repo, so two large accounts can use up the 60 an hour without a token  
+- Scan order: repos known to have releases (cached, bundled, tuned or listed in `repos`) are fetched first, then the rest in turn across owners, so one large account cannot use up the quota before the other is scanned  
+- With 15 or fewer requests left, repos never seen with a release wait for a later sync; the footer shows how many are still to check  
+- Bundled snapshot: shown at once on a first visit and whenever GitHub is limited or unreachable, so the store is never empty; live data replaces it per repo as soon as it arrives  
+- To refresh the snapshot, save `https://api.github.com/repos/<owner>/<repo>/releases?per_page=100` over the matching file in `snap/` and update `seeded`  
 - Owners with more than 100 repos: only the 100 most recently pushed are scanned  

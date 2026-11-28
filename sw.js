@@ -1,4 +1,4 @@
-const CACHE = 'shelf-5';
+const CACHE = 'shelf-6';
 const SHELL = ['./', 'index.html', 'css/style.css', 'js/apps.js', 'js/icons.js', 'js/qr.js', 'js/main.js', 'favicon.svg', 'manifest.webmanifest', 'images/contact-flow.jpg', 'fonts/geist.woff2', 'fonts/geist-mono.woff2'];
 
 self.addEventListener('install', e => {

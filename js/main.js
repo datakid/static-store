@@ -3,6 +3,7 @@
   const API = 'https://api.github.com/';
   const TTL = 9e5;
   const DAY = 864e5;
+  const KEEP = 15;
   const PLAT = { windows: 'Windows', macos: 'macOS', linux: 'Linux', android: 'Android', other: 'Other files' };
   const KNOWN = ['windows', 'macos', 'linux', 'android'];
   const RANK = ['.exe', '.msi', '.apk', '.dmg', '.pkg', '.appimage', '.deb', '.rpm'];
@@ -15,7 +16,7 @@
     android: '<path fill-rule="evenodd" d="M4.5 17.5a7.5 7.5 0 0 1 15 0zM8.5 14a1 1 0 1 0 2 0 1 1 0 0 0-2 0zm5 0a1 1 0 1 0 2 0 1 1 0 0 0-2 0z"/><path d="M8 11.5 6.5 9M16 11.5 17.5 9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>'
   };
   const S = { q: '', plat: null, host: null, open: null, tag: null, chan: 'all', vq: '', ready: false, busy: false, next: false, y: 0, pick: null, dir: 0, foc: 0 };
-  const net = { ok: 0, fail: 0, t: 0, until: 0, left: Infinity, cap: 0, bad: false };
+  const net = { ok: 0, fail: 0, wait: 0, t: 0, until: 0, reset: 0, out: 0, left: Infinity, cap: 0, bad: false };
   let APPS = [], VIS = [], sig = '', shown = '', mode = 'auto';
 
   const root = document.documentElement;
@@ -32,6 +33,12 @@
     del: k => { try { localStorage.removeItem(k); } catch {} }
   };
   const token = () => store.get('gh-token') || '';
+  const SEED = CFG.seed || [];
+  const SEEDT = Math.min(Date.parse(CFG.seeded) || 0, Date.now() - TTL);
+  const SNAP = {};
+  try { const [l, t] = JSON.parse(store.get('gh-quota')); if (t > Date.now()) Object.assign(net, { left: l, reset: t, until: l ? 0 : t }); } catch {}
+  const rkey = r => `repos/${r}/releases?per_page=100`;
+  const has = r => { try { return !!JSON.parse(store.get('gh:' + rkey(r)) || SNAP[lc('gh:' + rkey(r))] || null)?.d?.length; } catch { return false; } };
   const mq = matchMedia('(prefers-color-scheme:dark)');
   const fmt = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
   const date = d => d ? fmt.format(new Date(d)) : '';
@@ -94,13 +101,15 @@
     if (left == null) return;
     net.left = Math.min(net.left, +left);
     net.cap = +r.headers.get('x-ratelimit-limit') || 0;
+    net.reset = r.headers.get('x-ratelimit-reset') * 1000 || 0;
+    store.set('gh-quota', JSON.stringify([net.left, net.reset]));
     if ((r.status === 403 || r.status === 429) && +left === 0) net.until = r.headers.get('x-ratelimit-reset') * 1000;
   };
 
   async function gh(path, slim, o = {}) {
     const key = 'gh:' + path, tk = token();
     let c = null;
-    try { c = JSON.parse(store.get(key)); } catch {}
+    try { c = JSON.parse(store.get(key) || SNAP[lc(key)] || null); } catch {}
     const age = c ? Date.now() - c.t : Infinity;
     const keep = () => { if (c) net.t = Math.max(net.t, c.t); return c ? c.d : null; };
     if (o.stale) return keep();
@@ -108,8 +117,10 @@
     const idle = c && o.mark && c.m === o.mark && !c.d?.length && age < DAY && !(o.force && tk);
     if (fresh || idle) return keep();
     if (net.until > Date.now()) { net.fail++; return keep(); }
+    if (o.low && net.left - net.out <= KEEP) { net.wait++; return keep(); }
     const save = v => { store.set(key, JSON.stringify(v)); net.ok++; net.t = Date.now(); return v.d; };
     const call = auth => fetch(API + path, { headers: { Accept: 'application/vnd.github+json', ...(c?.e ? { 'If-None-Match': c.e } : {}), ...(auth && tk ? { Authorization: 'Bearer ' + tk } : {}) } });
+    net.out++;
     try {
       let r = await call(true);
       if (r.status === 401 && tk) { net.bad = true; r = await call(false); }
@@ -121,6 +132,8 @@
     } catch {
       net.fail++;
       return keep();
+    } finally {
+      net.out--;
     }
   }
 
@@ -141,14 +154,43 @@
     assets: r.assets.map(a => ({ n: a.name, s: a.size, c: a.download_count, u: a.browser_download_url }))
   }));
 
+  async function prime() {
+    await Promise.all(SEED.map(async repo => {
+      const key = 'gh:' + rkey(repo);
+      if (store.get(key)) return;
+      try {
+        const r = await fetch(`snap/${repo.replace('/', '__')}.json`);
+        if (r.ok) SNAP[lc(key)] = JSON.stringify({ t: SEEDT, d: slimReleases(await r.json()) });
+      } catch {}
+    }));
+  }
+
+  function fair(repos, lead) {
+    const tiers = [new Map(), new Map()];
+    for (const r of repos) {
+      const m = tiers[lead(r) ? 0 : 1], k = lc(r.repo.split('/')[0]);
+      m.set(k, [...(m.get(k) || []), r]);
+    }
+    return tiers.flatMap(m => {
+      const rows = [...m.values()], out = [];
+      for (let i = 0; rows.some(x => i < x.length); i++) for (const x of rows) if (i < x.length) out.push(x[i]);
+      return out;
+    });
+  }
+
   async function collect(o) {
+    const own = CFG.owners || [], one = CFG.repos || [];
     const lists = await Promise.all([
-      ...(CFG.owners || []).map(n => gh(`users/${n}/repos?per_page=100&sort=pushed`, slimRepos, o)),
-      ...(CFG.repos || []).map(r => gh('repos/' + r, d => [slimRepo(d)], o))
+      ...own.map(n => gh(`users/${n}/repos?per_page=100&sort=pushed`, slimRepos, o)),
+      ...one.map(r => gh('repos/' + r, d => [slimRepo(d)], o))
     ]);
+    const lost = new Set([...own, ...one].filter((n, i) => !lists[i]).map(lc));
+    const spare = SEED.filter(r => lost.has(lc(r)) || lost.has(lc(r.split('/')[0]))).map(repo => ({ repo }));
     const seen = new Set((CFG.hide || []).map(lc));
-    const repos = lists.flat().filter(r => r && !seen.has(lc(r.repo)) && seen.add(lc(r.repo)));
-    const rels = await pool(repos, r => gh(`repos/${r.repo}/releases?per_page=100`, slimReleases, { ...o, mark: r.pushed }));
+    const all = [...lists.flat(), ...spare].filter(r => r && !seen.has(lc(r.repo)) && seen.add(lc(r.repo)));
+    const lead = new Set(all.filter(r => TUNE[norm(r.repo)] || one.some(x => lc(x) === lc(r.repo)) || has(r.repo)).map(r => r.repo));
+    const repos = fair(all, r => lead.has(r.repo));
+    const rels = await pool(repos, r => gh(rkey(r.repo), slimReleases, { ...o, mark: r.pushed, low: !lead.has(r.repo) }));
     return repos.map((r, i) => ({ repo: r.repo, about: r.about, rel: rels[i] })).filter(a => a.rel?.length);
   }
 
@@ -377,7 +419,7 @@
   function status() {
     const lim = net.until > Date.now();
     const base = !net.t ? 'GitHub unreachable' : (net.fail ? (net.ok ? 'Partly synced ' : 'Saved copy ') : 'Synced ') + stamp(net.t);
-    const text = lim ? (net.t ? base + ' · limit resets ' : 'GitHub limit resets ') + stamp(net.until) : net.bad ? base + ' · token rejected' : base;
+    const text = (lim ? (net.t ? base + ' · limit resets ' : 'GitHub limit resets ') + stamp(net.until) : net.bad ? base + ' · token rejected' : base) + (net.wait ? ` · ${net.wait} more to check` : '');
     $('#state').textContent = text;
     $('#when').textContent = net.t ? stamp(net.t) : 'Sync';
     syncBtn.dataset.tip = text;
@@ -389,7 +431,7 @@
     S.busy = true;
     root.classList.add('busy');
     syncBtn.disabled = true;
-    Object.assign(net, { ok: 0, fail: 0, left: Infinity, cap: 0, bad: false });
+    Object.assign(net, { ok: 0, fail: 0, wait: 0, left: net.reset > Date.now() ? net.left : Infinity, cap: 0, bad: false });
     const now = await collect({ force });
     S.ready = true;
     if (now.length || !APPS.length) draw(now, APPS.length > 0);
@@ -443,7 +485,8 @@
     store.set('gh-token', v);
     if (token() !== v) return tokenState('This browser blocked storage, so the token was not saved.');
     $('#token').value = '';
-    net.until = 0;
+    net.until = net.reset = 0;
+    store.del('gh-quota');
     tokenState(note);
     sync(true);
   }
@@ -523,7 +566,7 @@
 
   $('#modes').addEventListener('click', e => { const b = e.target.closest('[data-m]'); if (b) theme(b.dataset.m); });
   $('#tform').addEventListener('submit', e => { e.preventDefault(); saveToken($('#token').value); });
-  $('#tdrop').addEventListener('click', () => { store.del('gh-token'); tokenState('Token removed.'); });
+  $('#tdrop').addEventListener('click', () => { store.del('gh-token'); store.del('gh-quota'); net.until = net.reset = 0; tokenState('Token removed.'); });
   syncBtn.addEventListener('click', () => sync(true));
   det.addEventListener('click', () => detect(det.getAttribute('aria-pressed') !== 'true'));
   mq.addEventListener('change', icon);
@@ -549,6 +592,7 @@
   });
 
   async function boot() {
+    await prime();
     const old = await collect({ stale: true });
     if (old.length) draw(old, false);
     sync(false);
